@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const gravatar = require("gravatar");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const Keys = require("../../config/keys");
 
 // Load User model
 const User = require("../../models/User");
@@ -45,4 +47,46 @@ router.post("/register", (req, res) => {
     }
   });
 });
+
+// @route          Get api/users/login
+// @description    Login User , Returning JET Token
+// @access         Puplic
+router.post("/login", (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+
+  // Find User by email
+  User.findOne({ email }).then(user => {
+    //check for user
+    if (!user) {
+      return res.status(404).json({ email: "User not found" });
+    }
+
+    // Check password
+    bcrypt.compare(password, user.password).then(isMatch => {
+      if (isMatch) {
+        //res.json({ msg: "Success" });
+        // User Matched
+
+        const payload = { id: user.id, name: user.name, avatar: user.avatar }; // create jwt payload
+
+        // Sign Token
+        jwt.sign(
+          payload,
+          Keys.secretOrKey,
+          { expiresIn: 3600 },
+          (err, token) => {
+            res.json({
+              success: true,
+              token: "Bearer " + token
+            });
+          }
+        );
+      } else {
+        return res.status(400).json({ password: "Password incorrect" });
+      }
+    });
+  });
+});
+
 module.exports = router;
